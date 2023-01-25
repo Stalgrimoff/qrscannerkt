@@ -1,13 +1,10 @@
 package com.blindassistant.qrscannerkt
 
 import android.Manifest
-import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.ImageCapture
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoCapture
@@ -18,26 +15,18 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import android.widget.Toast
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.core.Preview
-import androidx.camera.core.CameraSelector
 import android.util.Log
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.ImageProxy
-import androidx.camera.video.FallbackStrategy
-import androidx.camera.video.MediaStoreOutputOptions
-import androidx.camera.video.Quality
-import androidx.camera.video.QualitySelector
-import androidx.camera.video.VideoRecordEvent
-import androidx.core.content.PermissionChecker
-import java.nio.ByteBuffer
-import java.text.SimpleDateFormat
-import java.util.Locale
+import androidx.camera.core.*
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.barcode.internal.BarcodeRegistrar
+import com.google.mlkit.vision.common.InputImage
 
 typealias LumaListener = (luma: Double) -> Unit
 
 
-class MainActivity : AppCompatActivity() {
+@ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
 
     private var imageCapture: ImageCapture? = null
@@ -63,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
 
@@ -85,6 +76,43 @@ class MainActivity : AppCompatActivity() {
 
     private fun captureVideo() {}
 
+
+
+    class YourImageAnalyzer : ImageAnalysis.Analyzer {
+        override fun analyze(imageProxy: ImageProxy) {
+            Log.v("LogTagForTest", "POSHEL NAHUI EBLAN ")
+            val mediaImage = imageProxy.image
+            if (mediaImage != null) {
+                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                Log.v("IMAGE:", image.toString())
+                val options = BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(
+                        Barcode.FORMAT_QR_CODE)
+                    .build()
+                val scanner = BarcodeScanning.getClient(options)
+
+                scanner.process(image)
+                    .addOnSuccessListener { barcodes ->
+                                for (barcode in barcodes) {
+                                    val rawValue = barcode.rawValue
+                            Log.v("LogTagForTest", "barcode raw value: " + rawValue)
+                        }
+                    }
+                    .addOnFailureListener {
+                        Log.v("LogTagForTest", "POSHEL NAHUI FAILURE ")
+
+                    }
+                    .addOnCompleteListener {
+                        Log.v("LogTagForTest", "POSHEL NAHUI COMPLETE ")
+                        imageProxy.close()
+                    }
+            }
+
+
+
+        }
+    }
+
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
@@ -99,6 +127,12 @@ class MainActivity : AppCompatActivity() {
                     it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
                 }
 
+            val imageAnalyzer = ImageAnalysis.Builder()
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor, YourImageAnalyzer())
+                }
+
             // Select back camera as a default
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
@@ -109,6 +143,7 @@ class MainActivity : AppCompatActivity() {
                     .build()
                     .also {
                         it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
+
                     }
             }, ContextCompat.getMainExecutor(this))
 
@@ -118,7 +153,7 @@ class MainActivity : AppCompatActivity() {
 
                 // Bind use cases to camera
                 cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview)
+                    this, cameraSelector, preview, imageAnalyzer)
 
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
