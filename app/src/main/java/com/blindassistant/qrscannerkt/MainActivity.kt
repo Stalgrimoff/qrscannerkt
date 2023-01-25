@@ -1,6 +1,7 @@
 package com.blindassistant.qrscannerkt
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -22,6 +23,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.barcode.internal.BarcodeRegistrar
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.currentCoroutineContext
 
 typealias LumaListener = (luma: Double) -> Unit
 
@@ -53,7 +55,7 @@ typealias LumaListener = (luma: Double) -> Unit
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
+        MainActivity.appContext = applicationContext
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
 
@@ -80,11 +82,9 @@ typealias LumaListener = (luma: Double) -> Unit
 
     class YourImageAnalyzer : ImageAnalysis.Analyzer {
         override fun analyze(imageProxy: ImageProxy) {
-            Log.v("LogTagForTest", "POSHEL NAHUI EBLAN ")
             val mediaImage = imageProxy.image
             if (mediaImage != null) {
                 val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                Log.v("IMAGE:", image.toString())
                 val options = BarcodeScannerOptions.Builder()
                     .setBarcodeFormats(
                         Barcode.FORMAT_QR_CODE)
@@ -95,12 +95,11 @@ typealias LumaListener = (luma: Double) -> Unit
                     .addOnSuccessListener { barcodes ->
                                 for (barcode in barcodes) {
                                     val rawValue = barcode.rawValue
-                            Log.v("LogTagForTest", "barcode raw value: " + rawValue)
+                            Log.v("LogTagForTest", "barcode " + barcode + " raw value: " + rawValue)
+                                    Toast.makeText(MainActivity.appContext, rawValue, Toast.LENGTH_SHORT).show()
                         }
                     }
                     .addOnFailureListener {
-                        Log.v("LogTagForTest", "POSHEL NAHUI FAILURE ")
-
                     }
                     .addOnCompleteListener {
                         Log.v("LogTagForTest", "POSHEL NAHUI COMPLETE ")
@@ -173,6 +172,7 @@ typealias LumaListener = (luma: Double) -> Unit
     }
 
     companion object {
+        lateinit var appContext: Context
         private const val TAG = "CameraXApp"
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
