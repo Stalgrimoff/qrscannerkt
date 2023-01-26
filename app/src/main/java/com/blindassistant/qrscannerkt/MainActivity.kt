@@ -102,7 +102,6 @@ typealias LumaListener = (luma: Double) -> Unit
                     .addOnFailureListener {
                     }
                     .addOnCompleteListener {
-                        Log.v("LogTagForTest", "POSHEL NAHUI COMPLETE ")
                         imageProxy.close()
                     }
             }
