@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.video.Recorder
 import androidx.camera.video.Recording
@@ -23,10 +25,10 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.barcode.internal.BarcodeRegistrar
 import com.google.mlkit.vision.common.InputImage
-import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.*
 
 typealias LumaListener = (luma: Double) -> Unit
-
+private var Stopped: Boolean = false
 
 @ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -84,30 +86,43 @@ typealias LumaListener = (luma: Double) -> Unit
         override fun analyze(imageProxy: ImageProxy) {
             val mediaImage = imageProxy.image
             if (mediaImage != null) {
-                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                val image =
+                    InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                 val options = BarcodeScannerOptions.Builder()
                     .setBarcodeFormats(
-                        Barcode.FORMAT_QR_CODE)
+                        Barcode.FORMAT_QR_CODE
+                    )
                     .build()
                 val scanner = BarcodeScanning.getClient(options)
-
-                scanner.process(image)
-                    .addOnSuccessListener { barcodes ->
-                                for (barcode in barcodes) {
-                                    val rawValue = barcode.rawValue
-                            Log.v("LogTagForTest", "barcode " + barcode + " raw value: " + rawValue)
-                                    Toast.makeText(MainActivity.appContext, rawValue, Toast.LENGTH_SHORT).show()
+                if (!Stopped) {
+                    scanner.process(image)
+                        .addOnSuccessListener { barcodes ->
+                            for (barcode in barcodes) {
+                                val rawValue = barcode.rawValue
+                                Toast.makeText(
+                                    MainActivity.appContext,
+                                    "QR:" + rawValue,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                Stopped = true
+                                Handler(Looper.getMainLooper()).postDelayed(
+                                    {
+                                        Stopped = false
+                                    },
+                                    2000 // value in milliseconds
+                                )
+                                barcodes.clear()
+                            }
                         }
-                    }
-                    .addOnFailureListener {
-                    }
-                    .addOnCompleteListener {
-                        imageProxy.close()
-                    }
+                        .addOnFailureListener {
+                        }
+                        .addOnCompleteListener {
+                            imageProxy.close()
+                        }
+            } else {
+                    imageProxy.close()
+                }
             }
-
-
-
         }
     }
 
@@ -126,6 +141,7 @@ typealias LumaListener = (luma: Double) -> Unit
                 }
 
             val imageAnalyzer = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor, YourImageAnalyzer())
