@@ -8,9 +8,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.video.Recorder
-import androidx.camera.video.Recording
-import androidx.camera.video.VideoCapture
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.blindassistant.qrscannerkt.databinding.ActivityMainBinding
@@ -23,22 +20,16 @@ import androidx.camera.core.*
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.barcode.internal.BarcodeRegistrar
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.*
 
-typealias LumaListener = (luma: Double) -> Unit
 private var Stopped: Boolean = false
 
+@Suppress("NAME_SHADOWING")
 @ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
-
-    private var imageCapture: ImageCapture? = null
-
-    private var videoCapture: VideoCapture<Recorder>? = null
-    private var recording: Recording? = null
-
     private lateinit var cameraExecutor: ExecutorService
+
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults:
         IntArray) {
@@ -70,17 +61,12 @@ private var Stopped: Boolean = false
         }
 
         // Set up the listeners for take photo and video capture buttons
-        viewBinding.imageCaptureButton.setOnClickListener { takePhoto() }
-        viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
+        //viewBinding.imageCaptureButton.setOnClickListener { takePhoto() }
+        //viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
+
     }
-
-    private fun takePhoto() {}
-
-    private fun captureVideo() {}
-
-
 
     class YourImageAnalyzer : ImageAnalysis.Analyzer {
         override fun analyze(imageProxy: ImageProxy) {
@@ -119,7 +105,7 @@ private var Stopped: Boolean = false
                         .addOnCompleteListener {
                             imageProxy.close()
                         }
-            } else {
+                } else {
                     imageProxy.close()
                 }
             }
@@ -189,7 +175,6 @@ private var Stopped: Boolean = false
     companion object {
         lateinit var appContext: Context
         private const val TAG = "CameraXApp"
-        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS =
             mutableListOf (
