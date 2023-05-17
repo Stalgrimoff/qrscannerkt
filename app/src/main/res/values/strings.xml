@@ -2,4 +2,6 @@
     <string name="app_name">Blind Assistant</string>
     <string name="start">Start</string>
     <string name="stop">Stop</string>
+    <string name="settings">Настройки</string>
+    <string name="exit">Выйти</string>
 </resources>

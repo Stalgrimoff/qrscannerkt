@@ -14,11 +14,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static String DB_NAME = "qr.db";
     private static String DB_PATH = "";
     private static final int DB_VERSION = 1;
-
     private SQLiteDatabase mDataBase;
     private final Context mContext;
     private boolean mNeedUpdate = false;
-
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
         DB_PATH = context.getApplicationInfo().dataDir + "/databases/";
@@ -28,7 +26,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         this.getReadableDatabase();
     }
-
     public void updateDataBase() throws IOException {
         if (mNeedUpdate) {
             File dbFile = new File(DB_PATH + DB_NAME);
@@ -40,12 +37,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             mNeedUpdate = false;
         }
     }
-
     private boolean checkDataBase() {
         File dbFile = new File(DB_PATH + DB_NAME);
         return dbFile.exists();
     }
-
     private void copyDataBase() {
         if (!checkDataBase()) {
             this.getReadableDatabase();
@@ -57,7 +52,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
     }
-
     private void copyDBFile() throws IOException {
         InputStream mInput = mContext.getAssets().open(DB_NAME);
         OutputStream mOutput = new FileOutputStream(DB_PATH + DB_NAME);

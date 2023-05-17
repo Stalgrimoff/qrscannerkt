@@ -2,8 +2,10 @@ package com.blindassistant.qrscannerkt
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteDatabase
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -32,6 +34,7 @@ private var Stopped: Boolean = false
 private var Running: Boolean = false
 private var AppId: String = "3257b0ae1f8d05fed50a757017a93688"
 lateinit var mDB: SQLiteDatabase
+private var mediaPlayer: MediaPlayer? = null
 @Suppress("NAME_SHADOWING")
 @ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -53,7 +56,6 @@ lateinit var mDB: SQLiteDatabase
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         MainActivity.appContext = applicationContext
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
@@ -70,8 +72,6 @@ lateinit var mDB: SQLiteDatabase
         } catch (mSQLException: SQLException) {
             throw mSQLException
         }
-
-
     }
     fun onStart(view: View) {
         if(!Running) {
@@ -85,8 +85,12 @@ lateinit var mDB: SQLiteDatabase
             viewBinding.button.text = "Stop"
             viewBinding.viewFinder.visibility = View.VISIBLE
             Running = true
+
         } else {
             cameraExecutor.shutdown()
+            mediaPlayer?.stop()
+            mediaPlayer?.reset()
+            Stopped = false;
             viewBinding.button.text = "Start"
             viewBinding.viewFinder.visibility = View.INVISIBLE
             Running = false
@@ -107,6 +111,18 @@ lateinit var mDB: SQLiteDatabase
                 cursor.moveToFirst()
                 while (!cursor.isAfterLast()) {
                     if(cursor.getString(0) == value.split(" ")[2]) {
+                        mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier(cursor.getString(1), "raw", appContext.packageName))
+                        mediaPlayer?.setOnPreparedListener {
+                            Toast.makeText(
+                                MainActivity.appContext,
+                                "READY TO GO",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            mediaPlayer?.start()
+                        }
+                        mediaPlayer?.setOnCompletionListener {
+                            Stopped = false
+                        }
                         PrintToast(cursor.getString(2))
                         break
                     }
@@ -136,23 +152,17 @@ lateinit var mDB: SQLiteDatabase
                                 } else {
                                     Toast.makeText(
                                         MainActivity.appContext,
-                                        "WHO?",
+                                        "WRONG QR CODE",
                                         Toast.LENGTH_SHORT
                                     ).show()
+                                    Handler(Looper.getMainLooper()).postDelayed(
+                                        {
+                                            Stopped = false
+                                        },
+                                        2000 // value in milliseconds
+                                    )
                                 }
-
-//                                Toast.makeText(
-//                                    MainActivity.appContext,
-//                                    "QR:" + rawValue,
-//                                    Toast.LENGTH_SHORT
-//                                ).show()
                                 Stopped = true
-                                Handler(Looper.getMainLooper()).postDelayed(
-                                    {
-                                        Stopped = false
-                                    },
-                                    2000 // value in milliseconds
-                                )
                                 barcodes.clear()
                             }
                         }
@@ -242,6 +252,10 @@ lateinit var mDB: SQLiteDatabase
             }.toTypedArray()
     }
 
+    fun onSettings(view: View) {
+        val SettingsIntent = Intent(this, SettingsActivity::class.java)
+        startActivity(SettingsIntent)
+    }
 
 
 }
