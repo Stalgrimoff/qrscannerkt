@@ -3,33 +3,39 @@ package com.blindassistant.qrscannerkt
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.sqlite.SQLiteDatabase
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.blindassistant.qrscannerkt.databinding.ActivityMainBinding
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import android.widget.Toast
-import androidx.camera.lifecycle.ProcessCameraProvider
-import android.util.Log
-import androidx.camera.core.*
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.*
+import java.io.IOException
+import java.sql.SQLException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
 
 private var Stopped: Boolean = false
-
+private var Running: Boolean = false
+private var AppId: String = "3257b0ae1f8d05fed50a757017a93688"
+lateinit var mDB: SQLiteDatabase
 @Suppress("NAME_SHADOWING")
 @ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
-
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults:
         IntArray) {
@@ -51,24 +57,64 @@ private var Stopped: Boolean = false
         MainActivity.appContext = applicationContext
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
+        viewBinding.viewFinder.visibility = View.INVISIBLE
+        val mDBHelper = DatabaseHelper(MainActivity.appContext)
 
-        // Request camera permissions
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            ActivityCompat.requestPermissions(
-                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+        try {
+            mDBHelper.updateDataBase()
+        } catch (MIOException: IOException) {
+            throw Error("UnableToUpdateDB")
+        }
+        try {
+            mDB = mDBHelper.writableDatabase
+        } catch (mSQLException: SQLException) {
+            throw mSQLException
         }
 
-        // Set up the listeners for take photo and video capture buttons
-        //viewBinding.imageCaptureButton.setOnClickListener { takePhoto() }
-        //viewBinding.videoCaptureButton.setOnClickListener { captureVideo() }
-
-        cameraExecutor = Executors.newSingleThreadExecutor()
 
     }
+    fun onStart(view: View) {
+        if(!Running) {
+            if (allPermissionsGranted()) {
+                startCamera()
+            } else {
+                ActivityCompat.requestPermissions(
+                    this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            }
+            cameraExecutor = Executors.newSingleThreadExecutor()
+            viewBinding.button.text = "Stop"
+            viewBinding.viewFinder.visibility = View.VISIBLE
+            Running = true
+        } else {
+            cameraExecutor.shutdown()
+            viewBinding.button.text = "Start"
+            viewBinding.viewFinder.visibility = View.INVISIBLE
+            Running = false
+        }
 
+    }
     class YourImageAnalyzer : ImageAnalysis.Analyzer {
+        fun PrintToast(value: String) {
+            Toast.makeText(
+                MainActivity.appContext,
+                value,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+        fun QRChecker(value: String) {
+            if(value.split(" ")[1] == "5e07052733fc1343f5f6ea2f9e9b480b") {
+                val cursor = mDB.rawQuery("SELECT * FROM school10",null)
+                cursor.moveToFirst()
+                while (!cursor.isAfterLast()) {
+                    if(cursor.getString(0) == value.split(" ")[2]) {
+                        PrintToast(cursor.getString(2))
+                        break
+                    }
+                    cursor.moveToNext()
+                }
+                cursor.close()
+            }
+        }
         override fun analyze(imageProxy: ImageProxy) {
             val mediaImage = imageProxy.image
             if (mediaImage != null) {
@@ -85,11 +131,21 @@ private var Stopped: Boolean = false
                         .addOnSuccessListener { barcodes ->
                             for (barcode in barcodes) {
                                 val rawValue = barcode.rawValue
-                                Toast.makeText(
-                                    MainActivity.appContext,
-                                    "QR:" + rawValue,
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                if(rawValue!!.split(" ")[0] == AppId) {
+                                    QRChecker(rawValue)
+                                } else {
+                                    Toast.makeText(
+                                        MainActivity.appContext,
+                                        "WHO?",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+
+//                                Toast.makeText(
+//                                    MainActivity.appContext,
+//                                    "QR:" + rawValue,
+//                                    Toast.LENGTH_SHORT
+//                                ).show()
                                 Stopped = true
                                 Handler(Looper.getMainLooper()).postDelayed(
                                     {
@@ -154,7 +210,6 @@ private var Stopped: Boolean = false
                 // Bind use cases to camera
                 cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageAnalyzer)
-
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
@@ -186,5 +241,7 @@ private var Stopped: Boolean = false
                 }
             }.toTypedArray()
     }
+
+
 
 }
