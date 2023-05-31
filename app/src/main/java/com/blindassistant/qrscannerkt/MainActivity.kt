@@ -106,18 +106,29 @@ private var mediaPlayer: MediaPlayer? = null
             ).show()
         }
         fun QRChecker(value: String) {
-            if(value.split(" ")[1] == "5e07052733fc1343f5f6ea2f9e9b480b") {
-                val cursor = mDB.rawQuery("SELECT * FROM school10",null)
+            var libraryName: String = "";
+            var isFound: Boolean = false;
+            val infoCursor = mDB.rawQuery("SELECT * FROM info",null)
+            infoCursor.moveToFirst()
+            while (!infoCursor.isAfterLast()) {
+                if(infoCursor.getString(1) == value.split(" ")[1]) {
+                    libraryName = infoCursor.getString(0)
+                    isFound = true
+                    break
+                }
+                infoCursor.moveToNext()
+            }
+            infoCursor.close()
+
+            if(isFound) {
+                isFound = false
+                val cursor = mDB.rawQuery("SELECT * FROM $libraryName",null)
                 cursor.moveToFirst()
                 while (!cursor.isAfterLast()) {
                     if(cursor.getString(0) == value.split(" ")[2]) {
-                        mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier(cursor.getString(1), "raw", appContext.packageName))
+                        isFound = true;
+                        mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier(libraryName + "_" + cursor.getString(1), "raw", appContext.packageName))
                         mediaPlayer?.setOnPreparedListener {
-                            Toast.makeText(
-                                MainActivity.appContext,
-                                "READY TO GO",
-                                Toast.LENGTH_SHORT
-                            ).show()
                             mediaPlayer?.start()
                         }
                         mediaPlayer?.setOnCompletionListener {
@@ -129,6 +140,20 @@ private var mediaPlayer: MediaPlayer? = null
                     cursor.moveToNext()
                 }
                 cursor.close()
+
+                if(!isFound) {
+                    Toast.makeText(
+                        MainActivity.appContext,
+                        "NO MATCH",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                Handler(Looper.getMainLooper()).postDelayed(
+                    {
+                        Stopped = false
+                    },
+                    2000
+                )
             }
         }
         override fun analyze(imageProxy: ImageProxy) {

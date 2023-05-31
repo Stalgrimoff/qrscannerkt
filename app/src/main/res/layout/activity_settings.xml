@@ -39,11 +39,23 @@
         android:layout_width="match_parent"
         android:layout_height="205dp" />
 
-    <Button
-        android:id="@+id/button2"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:onClick="onExit"
-        android:text="@string/exit" />
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/button_library"
+            android:layout_width="205dp"
+            android:layout_height="wrap_content"
+            android:text="@string/library" />
+
+        <Button
+            android:id="@+id/button2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onExit"
+            android:text="@string/exit" />
+    </LinearLayout>
 
 </LinearLayout>

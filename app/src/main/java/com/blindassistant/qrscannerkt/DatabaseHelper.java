@@ -13,7 +13,7 @@ import java.io.OutputStream;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static String DB_NAME = "qr.db";
     private static String DB_PATH = "";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 3;
     private SQLiteDatabase mDataBase;
     private final Context mContext;
     private boolean mNeedUpdate = false;
@@ -36,6 +36,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
             mNeedUpdate = false;
         }
+    }
+
+    public void mergeDataBase(String newDB) {
+        String sql = "attach '" + newDB + ".db' as toMerge; " +
+                "BEGIN;" +
+                "CREATE TABLE " + newDB + " (" +
+                "qr TEXT NOT NULL, " +
+                "name TEXT NOT NULL, " +
+                "nameRU TEXT NOT NULL" +
+                "); " +
+                "insert into " + newDB + "select * from toMerge." + newDB + "; " +
+                "COMMIT; " +
+                "detach toMerge;";
+        mDataBase.execSQL(sql);
     }
     private boolean checkDataBase() {
         File dbFile = new File(DB_PATH + DB_NAME);
