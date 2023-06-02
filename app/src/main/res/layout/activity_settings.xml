@@ -48,6 +48,7 @@
             android:id="@+id/button_library"
             android:layout_width="205dp"
             android:layout_height="wrap_content"
+            android:onClick="onLibrary"
             android:text="@string/library" />
 
         <Button

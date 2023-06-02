@@ -14,4 +14,8 @@ class SettingsActivity : AppCompatActivity() {
     fun onExit(view: View) {
         this.finish()
     }
+
+    fun onLibrary(view: View) {
+
+    }
 }

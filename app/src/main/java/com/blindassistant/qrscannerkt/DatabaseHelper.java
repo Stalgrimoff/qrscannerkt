@@ -1,4 +1,5 @@
 package com.blindassistant.qrscannerkt;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
@@ -10,7 +11,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+
 public class DatabaseHelper extends SQLiteOpenHelper {
+
     private static String DB_NAME = "qr.db";
     private static String DB_PATH = "";
     private static final int DB_VERSION = 3;
@@ -24,7 +27,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         copyDataBase();
 
-        this.getReadableDatabase();
+        this.getWritableDatabase();
     }
     public void updateDataBase() throws IOException {
         if (mNeedUpdate) {
@@ -38,18 +41,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    public void mergeDataBase(String newDB) {
-        String sql = "attach '" + newDB + ".db' as toMerge; " +
-                "BEGIN;" +
-                "CREATE TABLE " + newDB + " (" +
-                "qr TEXT NOT NULL, " +
-                "name TEXT NOT NULL, " +
-                "nameRU TEXT NOT NULL" +
-                "); " +
-                "insert into " + newDB + "select * from toMerge." + newDB + "; " +
-                "COMMIT; " +
-                "detach toMerge;";
-        mDataBase.execSQL(sql);
+    public void mergeDataBase(String newDB, String dbPath) throws IOException {
+//        InputStream mInput = mContext.getAssets().open(newDB + ".db");
+//        OutputStream mOutput = new FileOutputStream(DB_PATH + newDB + ".db");
+//        byte[] mBuffer = new byte[1024];
+//        int mLength;
+//        while ((mLength = mInput.read(mBuffer)) > 0)
+//            mOutput.write(mBuffer, 0, mLength);
+//        mOutput.flush();
+//        mOutput.close();
+//        mInput.close();
+
+        this.getWritableDatabase().execSQL("attach '" + dbPath + "' as toMerge;");
+        this.getWritableDatabase().execSQL("CREATE TABLE " + newDB + "(qr TEXT(32) NOT NULL, name TEXT(50) NOT NULL, nameRU TEXT(50) NOT NULL);");
+        this.getWritableDatabase().execSQL("insert into " + newDB + " select * from toMerge." + newDB + "; ");
+        this.getWritableDatabase().execSQL("detach toMerge;");
+
+        String infosql = "INSERT INTO info (name,qr) VALUES (\"test\", \"098f6bcd4621d373cade4e832627b4f6\")";
+        this.getWritableDatabase().execSQL(infosql);
     }
     private boolean checkDataBase() {
         File dbFile = new File(DB_PATH + DB_NAME);
