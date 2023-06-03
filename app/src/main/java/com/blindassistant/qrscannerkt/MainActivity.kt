@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.provider.MediaStore.Audio.Media
 import android.provider.Settings
 import android.util.Log
 import android.view.View
@@ -26,16 +27,22 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.blindassistant.qrscannerkt.databinding.ActivityMainBinding
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.*
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
 import java.sql.SQLException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 
 
 private var Stopped: Boolean = false
@@ -43,6 +50,8 @@ private var Running: Boolean = false
 private var AppId: String = "3257b0ae1f8d05fed50a757017a93688"
 lateinit var mDB: SQLiteDatabase
 private var mediaPlayer: MediaPlayer? = null
+private var preInstalled = arrayOf("school10","bgitu")
+
 @Suppress("NAME_SHADOWING")
 @ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -71,6 +80,12 @@ private var mediaPlayer: MediaPlayer? = null
         viewBinding.viewFinder.visibility = View.INVISIBLE
         mDBHelper = DatabaseHelper(MainActivity.appContext)
 
+        val path = this.getExternalFilesDir(null)
+        val folder = File(path, "audio")
+        if(!folder.exists()) {
+            folder.mkdirs()
+        }
+        
         try {
             mDBHelper.updateDataBase()
         } catch (MIOException: IOException) {
@@ -135,19 +150,24 @@ private var mediaPlayer: MediaPlayer? = null
                 cursor.moveToFirst()
                 while (!cursor.isAfterLast()) {
                     if(cursor.getString(0) == value.split(" ")[2]) {
-                        Toast.makeText(
-                            MainActivity.appContext,
-                            cursor.getString(1),
-                            Toast.LENGTH_SHORT
-                        ).show()
-
                         isFound = true;
-                        mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier(libraryName + "_" + cursor.getString(1), "raw", appContext.packageName))
-                        mediaPlayer?.setOnPreparedListener {
-                            mediaPlayer?.start()
-                        }
-                        mediaPlayer?.setOnCompletionListener {
-                            Stopped = false
+                        if(preInstalled.contains(libraryName)) {
+                            mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier(libraryName + "_" + cursor.getString(1), "raw", appContext.packageName))
+                            mediaPlayer?.setOnPreparedListener {
+                                mediaPlayer?.start()
+                            }
+                            mediaPlayer?.setOnCompletionListener {
+                                Stopped = false
+                            }
+                        } else {
+                            mediaPlayer = MediaPlayer.create(MainActivity.appContext,
+                                (appContext.getExternalFilesDir("audio").toString() + "/" + libraryName + "_" + cursor.getString(1) + ".mp3")?.toUri())
+                            mediaPlayer?.setOnPreparedListener {
+                                mediaPlayer?.start()
+                            }
+                            mediaPlayer?.setOnCompletionListener {
+                                Stopped = false
+                            }
                         }
                         PrintToast(cursor.getString(2))
                         break
@@ -157,11 +177,7 @@ private var mediaPlayer: MediaPlayer? = null
                 cursor.close()
 
                 if(!isFound) {
-                    Toast.makeText(
-                        MainActivity.appContext,
-                        "NO MATCH",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    PrintToast("NO MATCH")
                 }
                 Handler(Looper.getMainLooper()).postDelayed(
                     {
@@ -169,6 +185,15 @@ private var mediaPlayer: MediaPlayer? = null
                     },
                     2000
                 )
+            } else {
+                mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier("nolibrary", "raw", appContext.packageName))
+                mediaPlayer?.setOnPreparedListener {
+                    mediaPlayer?.start()
+                }
+                mediaPlayer?.setOnCompletionListener {
+                    Stopped = false
+                }
+                PrintToast("Библиотека отсутствует")
             }
         }
         override fun analyze(imageProxy: ImageProxy) {
@@ -366,23 +391,132 @@ private var mediaPlayer: MediaPlayer? = null
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data);
         val uri: Uri? = data?.data
-
         if (uri != null) {
+            var isFound: Boolean = false
+            val cursor = mDB.rawQuery("SELECT * FROM info",null)
+            cursor.moveToFirst()
+            while (!cursor.isAfterLast()) {
+                if(cursor.getString(0) == ((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.'))) {
+                    Toast.makeText(
+                        MainActivity.appContext,
+                        "Ошибка: Библиотека уже добавлена",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    isFound = true
+                    break
+                }
+                cursor.moveToNext()
+            }
+            cursor.close()
 
-           Log.d(TAG, "onSettingsaa: " + getPath(appContext, uri))
-//            Log.d(TAG, "onActivityResult: " + mDB.path.dropLast(5))
-            //Log.d(TAG, "onActivityResult: " + ((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')))
+            if(!isFound && (((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.'))) != "info") {
+                // COPYING ZIP TO CACHE
+                val libraryfile = getPath(appContext,uri)?.let { File(it) }
+                val to = File(this.externalCacheDir.toString() + "/" + getPath(appContext,uri)?.substringAfterLast('/'))
+                if(to.exists().not()) {
+                    to.createNewFile()
+                }
+                if (libraryfile != null) {
+                    libraryfile.copyTo(to, true)
+                }
 
-          mDBHelper.mergeDataBase(((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')), getPath(appContext,uri))
+                try {
+                    // TRYING TO UNZIP
+                    unzipper(to)
+                    //MERGING DATABASE
+                    mDBHelper.mergeDataBase(((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')),
+                        to.absolutePath.substringBeforeLast('.') + "/" + ((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')) + ".db")
+                    //MOVING AUDIO FILES
+                    File(this.externalCacheDir.toString() + "/" + (getPath(appContext,uri)?.substringAfterLast('/')
+                        ?.substringBeforeLast('.')) + "/audio/").walk().forEach {
+                        if(it.toString().substringAfterLast('.') == "mp3") {
+                            Log.d(TAG, "onActivityResult: $it")
+                            val destfile = File(this.getExternalFilesDir("audio").toString() + "/" + it.toString().substringAfterLast('/'))
+                            if(destfile.exists().not()) {
+                                destfile.createNewFile()
+                            }
+                            it.copyTo(destfile, true)
+                        }
+                    }
+                    if(Running) { //restarting camera
+                        onStart(viewBinding.root)
+                        onStart(viewBinding.root)
+                    }
+                    //ERASING CACHE
+                    val cacheDir: File? = this.externalCacheDir
+
+                    val files = cacheDir?.listFiles()
+                    if (files != null) {
+                        for (file in files) file.delete()
+                    }
+                    val test = File(this.externalCacheDir.toString() + "/" + (getPath(appContext,uri)?.substringAfterLast('/')
+                        ?.substringBeforeLast('.')) + "/")
+                    test.deleteRecursively()
+
+                    //Результат
+                    Toast.makeText(
+                        MainActivity.appContext,
+                        "Библиотека добавлена",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } catch (e: IOException) {
+                    Toast.makeText(
+                        MainActivity.appContext,
+                        "Ошибка",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
+
+    @Throws(IOException::class)
+    fun newFile(destinationDir: File, zipEntry: ZipEntry): File {
+        val destFile = File(destinationDir, zipEntry.name)
+        val destDirPath = destinationDir.canonicalPath
+        val destFilePath = destFile.canonicalPath
+        if (!destFilePath.startsWith(destDirPath + File.separator)) {
+            throw IOException("Entry is outside of the target dir: " + zipEntry.name)
+        }
+        return destFile
+    }
+
+    fun unzipper(path: File) {
+        val destDir = File(path.absolutePath.substringBeforeLast('.') + "/")
+        val buffer = ByteArray(1024)
+        val zis = ZipInputStream(FileInputStream(path.absolutePath))
+        var zipEntry = zis.nextEntry
+        while (zipEntry != null) {
+            val newFile: File = newFile(destDir, zipEntry)
+            if (zipEntry.isDirectory) {
+                if (!newFile.isDirectory && !newFile.mkdirs()) {
+                    throw IOException("Failed to create directory $newFile")
+                }
+            } else {
+                val parent = newFile.parentFile
+                if (!parent.isDirectory && !parent.mkdirs()) {
+                    throw IOException("Failed to create directory $parent")
+                }
+
+                val fos = FileOutputStream(newFile)
+                var len: Int
+                while (zis.read(buffer).also { len = it } > 0) {
+                    fos.write(buffer, 0, len)
+                }
+                fos.close()
+            }
+            zipEntry = zis.nextEntry
+        }
+
+        zis.closeEntry()
+        zis.close()
+    }
+
     @RequiresApi(Build.VERSION_CODES.R)
     fun onSettings(view: View) {
 //        val SettingsIntent = Intent(this, SettingsActivity::class.java)
 //        startActivity(SettingsIntent)
-       // mDBHelper.mergeDataBase("test")
 
-        Log.d(TAG, "onSettings: " + appContext.getApplicationInfo().dataDir + "/databases/qr.db")
         if(!Environment.isExternalStorageManager()) {
             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
             val uri = Uri.fromParts(
@@ -395,12 +529,9 @@ private var mediaPlayer: MediaPlayer? = null
         if(Environment.isExternalStorageManager()) {
             val code: Int = 0;
             var chooseFile = Intent(Intent.ACTION_GET_CONTENT)
-            chooseFile.type = "*/*"
+            chooseFile.type = "application/zip"
             chooseFile = Intent.createChooser(chooseFile, "Choose a file")
             startActivityForResult(chooseFile,code)
         }
-
     }
-
-
 }
