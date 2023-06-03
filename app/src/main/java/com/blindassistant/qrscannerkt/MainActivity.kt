@@ -179,12 +179,6 @@ private var preInstalled = arrayOf("school10","bgitu")
                 if(!isFound) {
                     PrintToast("NO MATCH")
                 }
-                Handler(Looper.getMainLooper()).postDelayed(
-                    {
-                        Stopped = false
-                    },
-                    2000
-                )
             } else {
                 mediaPlayer = MediaPlayer.create(MainActivity.appContext, appContext.resources.getIdentifier("nolibrary", "raw", appContext.packageName))
                 mediaPlayer?.setOnPreparedListener {
@@ -193,7 +187,7 @@ private var preInstalled = arrayOf("school10","bgitu")
                 mediaPlayer?.setOnCompletionListener {
                     Stopped = false
                 }
-                PrintToast("Библиотека отсутствует")
+                PrintToast("Отсутствует библиотека")
             }
         }
         override fun analyze(imageProxy: ImageProxy) {
@@ -310,7 +304,6 @@ private var preInstalled = arrayOf("school10","bgitu")
             mutableListOf (
                 Manifest.permission.CAMERA,
                 Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
             ).apply {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                     add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -320,10 +313,7 @@ private var preInstalled = arrayOf("school10","bgitu")
 
     fun getPath(context: Context, uri: Uri): String? {
         val isKitKatorAbove = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT
-
-        // DocumentProvider
         if (isKitKatorAbove && DocumentsContract.isDocumentUri(context, uri)) {
-            // ExternalStorageProvider
             if (isExternalStorageDocument(uri)) {
                 val docId = DocumentsContract.getDocumentId(uri)
                 val split = docId.split(":".toRegex()).toTypedArray()
@@ -507,7 +497,6 @@ private var preInstalled = arrayOf("school10","bgitu")
             }
             zipEntry = zis.nextEntry
         }
-
         zis.closeEntry()
         zis.close()
     }
