@@ -16,10 +16,10 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
-import android.provider.MediaStore.Audio.Media
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -38,6 +38,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.math.BigInteger
+import java.security.MessageDigest
 import java.sql.SQLException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -109,7 +111,7 @@ private var preInstalled = arrayOf("school10","bgitu")
             viewBinding.button.text = "Stop"
             viewBinding.viewFinder.visibility = View.VISIBLE
             Running = true
-
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             cameraExecutor.shutdown()
             mediaPlayer?.stop()
@@ -118,8 +120,8 @@ private var preInstalled = arrayOf("school10","bgitu")
             viewBinding.button.text = "Start"
             viewBinding.viewFinder.visibility = View.INVISIBLE
             Running = false
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
-
     }
     class YourImageAnalyzer : ImageAnalysis.Analyzer {
         fun PrintToast(value: String) {
@@ -378,6 +380,14 @@ private var preInstalled = arrayOf("school10","bgitu")
         return "com.android.providers.media.documents" == uri.authority
     }
 
+    fun md5(input: String?): String {
+        val md = MessageDigest.getInstance("MD5")
+        if (input != null) {
+            return BigInteger(1, md.digest(input.toByteArray())).toString(16).padStart(32, '0')
+        }
+        return ""
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data);
         val uri: Uri? = data?.data
@@ -415,7 +425,7 @@ private var preInstalled = arrayOf("school10","bgitu")
                     unzipper(to)
                     //MERGING DATABASE
                     mDBHelper.mergeDataBase(((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')),
-                        to.absolutePath.substringBeforeLast('.') + "/" + ((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')) + ".db")
+                        to.absolutePath.substringBeforeLast('.') + "/" + ((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.')) + ".db", md5(((getPath(appContext,uri)?.substringAfterLast('/'))?.substringBefore('.'))))
                     //MOVING AUDIO FILES
                     File(this.externalCacheDir.toString() + "/" + (getPath(appContext,uri)?.substringAfterLast('/')
                         ?.substringBeforeLast('.')) + "/audio/").walk().forEach {

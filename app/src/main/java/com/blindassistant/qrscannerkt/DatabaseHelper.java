@@ -10,7 +10,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.math.BigInteger;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -41,7 +43,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    public void mergeDataBase(String newDB, String dbPath) throws IOException {
+    public void mergeDataBase(String newDB, String dbPath, String hash) throws IOException, NoSuchAlgorithmException {
 //        InputStream mInput = mContext.getAssets().open(newDB + ".db");
 //        OutputStream mOutput = new FileOutputStream(DB_PATH + newDB + ".db");
 //        byte[] mBuffer = new byte[1024];
@@ -57,7 +59,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         this.getWritableDatabase().execSQL("insert into " + newDB + " select * from toMerge." + newDB + "; ");
         this.getWritableDatabase().execSQL("detach toMerge;");
 
-        String infosql = "INSERT INTO info (name,qr) VALUES (\"test\", \"098f6bcd4621d373cade4e832627b4f6\")";
+        String infosql = "INSERT INTO info (name,qr) VALUES (\"" + newDB +  "\", \"" + hash + "\")";
         this.getWritableDatabase().execSQL(infosql);
     }
     private boolean checkDataBase() {
