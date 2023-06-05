@@ -1,31 +1,37 @@
 package com.blindassistant.qrscannerkt
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Rect
+import android.hardware.camera2.CaptureRequest
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
+import android.util.Size
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.camera2.impl.Camera2ImplConfig
+import androidx.camera.camera2.internal.Camera2CameraControlImpl
+import androidx.camera.camera2.internal.compat.CameraCharacteristicsCompat
+import androidx.camera.camera2.internal.compat.quirk.CamcorderProfileResolutionQuirk
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.blindassistant.qrscannerkt.databinding.ActivityMainBinding
-import com.google.gson.annotations.SerializedName
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -37,16 +43,17 @@ import java.sql.SQLException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-
+var defRes = Size(640,480)
 private var Stopped: Boolean = false
 private var Running: Boolean = false
 private var AppId: String = "3257b0ae1f8d05fed50a757017a93688"
 lateinit var mDB: SQLiteDatabase
 private var mediaPlayer: MediaPlayer? = null
-private var preInstalled = arrayOf("school10","bgitu")
+var preInstalled = arrayOf("school10","bgitu")
+
 val blockedArray = ArrayList<String>()
 lateinit var mDBHelper: DatabaseHelper;
-@Suppress("NAME_SHADOWING")
+@ExperimentalCamera2Interop @Suppress("NAME_SHADOWING")
 @ExperimentalGetImage class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -67,16 +74,28 @@ lateinit var mDBHelper: DatabaseHelper;
         }
     }
 
-
+    fun initConfig() {
+        val settings = this.getSharedPreferences("CameraSettings", AppCompatActivity.MODE_PRIVATE)
+        if (!settings.contains("AF")) {
+            settings.edit().let {
+                it.putInt("AF", 0)
+                it.putInt("theme", 0)
+                it.putInt("filter", 0)
+                it.putBoolean("torch",false)
+                it.putBoolean("preview",true)
+                it.apply()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         MainActivity.appContext = applicationContext
+        initConfig()
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
         viewBinding.viewFinder.visibility = View.INVISIBLE
         mDBHelper = DatabaseHelper(MainActivity.appContext)
-
         val path = this.getExternalFilesDir(null)
         val folder = File(path, "audio")
         if(!folder.exists()) {
@@ -94,6 +113,15 @@ lateinit var mDBHelper: DatabaseHelper;
             throw mSQLException
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        restartCamera()
+        if (!getSharedPreferences("CameraSettings", AppCompatActivity.MODE_PRIVATE).getBoolean("preview",true)) {
+            viewBinding.viewFinder.visibility = View.INVISIBLE
+        }
+    }
+
     fun onStart(view: View) {
         if(!Running) {
             if (allPermissionsGranted()) {
@@ -103,16 +131,19 @@ lateinit var mDBHelper: DatabaseHelper;
                     this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
             }
             cameraExecutor = Executors.newSingleThreadExecutor()
-            viewBinding.button.text = "Stop"
-            viewBinding.viewFinder.visibility = View.VISIBLE
+            viewBinding.button.text = resources.getText(R.string.stop)
+            if (getSharedPreferences("CameraSettings", AppCompatActivity.MODE_PRIVATE).getBoolean("preview",true)) {
+                viewBinding.viewFinder.visibility = View.VISIBLE
+            }
             Running = true
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             cameraExecutor.shutdown()
+            cameraExecutor.shutdownNow()
             mediaPlayer?.stop()
             mediaPlayer?.reset()
             Stopped = false;
-            viewBinding.button.text = "Start"
+            viewBinding.button.text = resources.getText(R.string.start)
             viewBinding.viewFinder.visibility = View.INVISIBLE
             Running = false
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -125,14 +156,13 @@ lateinit var mDBHelper: DatabaseHelper;
             apiService.requestInfo(userInfo) {
                 println(it?.name.toString())
                 if(it?.name != null) {
-                    PrintToast(it?.name.toString())
                     if(it?.name.toString() != "info") {
                         apiService.downloadFile(it.name.toString())
                     }
                 } else {
                     PrintToast("CONNECTION FAILED")
+                    blockedArray.remove(DB)
                 }
-
             }
         }
         fun PrintToast(value: String) {
@@ -208,6 +238,11 @@ lateinit var mDBHelper: DatabaseHelper;
         }
         override fun analyze(imageProxy: ImageProxy) {
             val mediaImage = imageProxy.image
+
+            val test = mediaImage?.let { Rect(0, 0, mediaImage.width, it.height) }
+
+            println(test)
+
             if (mediaImage != null) {
                 val image =
                     InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
@@ -254,13 +289,12 @@ lateinit var mDBHelper: DatabaseHelper;
         }
     }
 
+    @SuppressLint("RestrictedApi")
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-
         cameraProviderFuture.addListener({
             // Used to bind the lifecycle of cameras to the lifecycle owner
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-
             // Preview
             val preview = Preview.Builder()
                 .build()
@@ -270,6 +304,7 @@ lateinit var mDBHelper: DatabaseHelper;
 
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setDefaultResolution(CamcorderProfileResolutionQuirk(CameraCharacteristicsCompat.toCameraCharacteristicsCompat(Camera2CameraInfo.extractCameraCharacteristics(cameraProvider.availableCameraInfos[0]))).supportedResolutions.let {it[it.size/2]})
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor, YourImageAnalyzer())
@@ -277,6 +312,53 @@ lateinit var mDBHelper: DatabaseHelper;
 
             // Select back camera as a default
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            // CAMERA SETTINGS
+            val configBuilder = Camera2ImplConfig.Builder()
+
+            val settings = this.getSharedPreferences("CameraSettings", AppCompatActivity.MODE_PRIVATE)
+            val AFPref: Int = settings.getInt("AF",0)
+            val filterPref: Int = settings.getInt("filter",0)
+
+            when (AFPref) {
+                0 -> configBuilder.setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_AUTO)
+                1 -> configBuilder.setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_MACRO)
+                2 -> configBuilder.setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_OFF)
+                else -> {
+                    configBuilder.setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AF_MODE,
+                        CaptureRequest.CONTROL_AF_MODE_AUTO)
+                }
+            }
+
+            when (filterPref) {
+                0 -> configBuilder.setCaptureRequestOption(
+                    CaptureRequest.CONTROL_EFFECT_MODE,
+                    CaptureRequest.CONTROL_EFFECT_MODE_OFF)
+                1 -> configBuilder.setCaptureRequestOption(
+                    CaptureRequest.CONTROL_EFFECT_MODE,
+                    CaptureRequest.CONTROL_EFFECT_MODE_MONO)
+
+            }
+
+            configBuilder.setCaptureRequestOption(
+                CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE,
+                CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON
+            )
+            configBuilder.setCaptureRequestOption(
+                CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE,
+                CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON
+            )
+            configBuilder.setCaptureRequestOption(
+                CaptureRequest.CONTROL_SCENE_MODE,
+                CaptureRequest.CONTROL_SCENE_MODE_BARCODE
+            )
 
             val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
             cameraProviderFuture.addListener(Runnable {
@@ -290,19 +372,21 @@ lateinit var mDBHelper: DatabaseHelper;
             }, ContextCompat.getMainExecutor(this))
 
             try {
-                // Unbind use cases before rebinding
                 cameraProvider.unbindAll()
-
-                // Bind use cases to camera
-                cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageAnalyzer)
+                if (settings.getBoolean("preview",true)) {
+                    (cameraProvider.bindToLifecycle(
+                        this, cameraSelector, preview, imageAnalyzer).cameraControl as Camera2CameraControlImpl).addInteropConfig(configBuilder.build())
+                } else {
+                    (cameraProvider.bindToLifecycle(
+                        this, cameraSelector, imageAnalyzer).cameraControl as Camera2CameraControlImpl).addInteropConfig(configBuilder.build())
+                }
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
 
         }, ContextCompat.getMainExecutor(this))
     }
-
+    
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
             baseContext, it) == PackageManager.PERMISSION_GRANTED
@@ -326,7 +410,7 @@ lateinit var mDBHelper: DatabaseHelper;
         private val REQUIRED_PERMISSIONS =
             mutableListOf (
                 Manifest.permission.CAMERA,
-                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.RECORD_AUDIO, //нужно убрать
             ).apply {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                     add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -334,38 +418,9 @@ lateinit var mDBHelper: DatabaseHelper;
             }.toTypedArray()
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data);
-        val uri: Uri? = data?.data
-        val libraryManager = LibraryManager()
-        libraryManager.newLibrary(uri)
-        if(Running) { //restarting camera
-            onStart(viewBinding.root)
-            onStart(viewBinding.root)
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.R)
+    @RequiresApi(Build.VERSION_CODES.R) // это нужно исправить!!
     fun onSettings(view: View) {
-//        val SettingsIntent = Intent(this, SettingsActivity::class.java)
-//        startActivity(SettingsIntent)
-
-        if(!Environment.isExternalStorageManager()) {
-            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-            val uri = Uri.fromParts(
-                "package",
-                packageName, null
-            )
-            intent.data = uri
-            startActivity(intent)
-        }
-        if(Environment.isExternalStorageManager()) {
-            val code: Int = 0;
-            var chooseFile = Intent(Intent.ACTION_GET_CONTENT)
-            chooseFile.type = "application/zip"
-            chooseFile = Intent.createChooser(chooseFile, "Choose a file")
-            startActivityForResult(chooseFile,code)
-        }
-
+        val SettingsIntent = Intent(this, SettingsActivity::class.java)
+        startActivity(SettingsIntent)
     }
 }

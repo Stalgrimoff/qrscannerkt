@@ -5,4 +5,27 @@
     <string name="settings">Настройки</string>
     <string name="exit">Выйти</string>
     <string name="library">Библиотеки</string>
+
+    <string name="torch">Вспышка</string>
+    <string name="preview">Предпросмотр</string>
+
+    <string name="delete">Удалить</string>
+    <string name="addlibrary">Добавить библиотеку</string>
+
+    <string-array name="themes">
+        <item>Системная</item>
+        <item>OLED</item>
+        <item>Чёрная</item>
+    </string-array>
+
+    <string-array name="filters">
+        <item>Без фильтра</item>
+        <item>Ч/Б</item>
+    </string-array>
+
+    <string-array name="AF">
+        <item>Авто</item>
+        <item>Макро</item>
+        <item>Фиксированный</item>
+    </string-array>
 </resources>

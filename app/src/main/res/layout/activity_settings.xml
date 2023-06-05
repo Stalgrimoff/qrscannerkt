@@ -7,56 +7,66 @@
     android:orientation="vertical"
     tools:context=".SettingsActivity">
 
-    <CheckBox
-        android:id="@+id/checkBox"
+    <Spinner
+        android:id="@+id/spinner1"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="120dp"
-        android:text="TEST" />
+        android:layout_height="91dp"
+        android:background="@android:drawable/btn_dropdown"
+        android:backgroundTint="#E8CACA"
+        android:backgroundTintMode="src_in"
+        android:spinnerMode="dropdown"
+        android:textAlignment="center" />
 
-    <CheckBox
-        android:id="@+id/checkBox2"
+    <Spinner
+        android:id="@+id/spinner2"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="120dp"
-        android:text="TODO" />
+        android:layout_height="102dp"
+        android:background="@android:drawable/btn_dropdown"
+        android:backgroundTint="#E8CACA"
+        android:backgroundTintMode="src_in"
+        android:spinnerMode="dropdown"
+        android:textAlignment="center" />
+
+    <Spinner
+        android:id="@+id/spinner3"
+        android:layout_width="match_parent"
+        android:layout_height="105dp"
+        android:background="@android:drawable/btn_dropdown"
+        android:backgroundTint="#E8CACA"
+        android:backgroundTintMode="src_in"
+        android:spinnerMode="dropdown"
+        android:textAlignment="center" />
 
     <Switch
         android:id="@+id/switch1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="120dp"
-        android:text="TODO" />
+        android:text="@string/torch"
+        android:textAlignment="center"
+        android:textSize="34sp" />
 
     <Switch
         android:id="@+id/switch2"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="120dp"
-        android:text="TEST" />
+        android:text="@string/preview"
+        android:textAlignment="center"
+        android:textSize="34sp" />
 
-    <Space
+    <Button
+        android:id="@+id/button_library"
         android:layout_width="match_parent"
-        android:layout_height="205dp" />
+        android:layout_height="73dp"
+        android:onClick="onLibrary"
+        android:text="@string/library" />
 
-    <LinearLayout
+    <Button
+        android:id="@+id/button2"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/button_library"
-            android:layout_width="205dp"
-            android:layout_height="wrap_content"
-            android:onClick="onLibrary"
-            android:text="@string/library" />
-
-        <Button
-            android:id="@+id/button2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onExit"
-            android:text="@string/exit" />
-    </LinearLayout>
+        android:layout_height="wrap_content"
+        android:onClick="addLibrary"
+        android:text="@string/addlibrary" />
 
 </LinearLayout>
