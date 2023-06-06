@@ -2,6 +2,8 @@ package com.blindassistant.qrscannerkt
 
 import android.Manifest
 import android.annotation.SuppressLint
+import org.tensorflow.lite.support.image.ImageProcessor
+import org.tensorflow.lite.support.image.TensorImage
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -32,16 +34,22 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.blindassistant.qrscannerkt.databinding.ActivityMainBinding
+import com.google.mlkit.common.model.LocalModel
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.objects.DetectedObject
+import com.google.mlkit.vision.objects.ObjectDetection
+import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions
+import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.IOException
 import java.sql.SQLException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.log
 
 var defRes = Size(640,480)
 private var Stopped: Boolean = false
@@ -239,9 +247,21 @@ lateinit var mDBHelper: DatabaseHelper;
         override fun analyze(imageProxy: ImageProxy) {
             val mediaImage = imageProxy.image
 
-            val test = mediaImage?.let { Rect(0, 0, mediaImage.width, it.height) }
+            val test = mediaImage?.let { Rect(0, 0, it.width, it.height) }
 
             println(test)
+            val localModel = LocalModel.Builder()
+                .setAssetFilePath("model.tflite")
+                .build()
+
+            val options = CustomObjectDetectorOptions.Builder(localModel)
+                .setDetectorMode(ObjectDetectorOptions.STREAM_MODE)
+                .setMaxPerObjectLabelCount(1)
+                .setClassificationConfidenceThreshold(0.05f)
+                .build()
+
+
+            val objectDetector = ObjectDetection.getClient(options)
 
             if (mediaImage != null) {
                 val image =
@@ -253,6 +273,31 @@ lateinit var mDBHelper: DatabaseHelper;
                     .build()
                 val scanner = BarcodeScanning.getClient(options)
                 if (!Stopped) {
+                    objectDetector.process(image)
+                        .addOnSuccessListener { detectedObjects ->
+                            println("rabota")
+                            for (detectedObject in detectedObjects) {
+                                if(detectedObject.labels.size > 0) {
+                                    Log.d(TAG, "analyze: ${detectedObject.labels[0].confidence}")
+                                }
+                                val boundingBox = detectedObject.boundingBox
+                                val trackingId = detectedObject.trackingId
+                                Log.d(TAG, "analyze: $boundingBox")
+                                for (label in detectedObject.labels) {
+                                    val text = label.text
+                                    val index = label.index
+                                    val confidence = label.confidence
+                                    Log.d(TAG, "analyzeSU: ${text}")
+                                }
+                            }// Task completed successfully
+                            // ...
+                        }
+                        .addOnFailureListener { e ->
+                           // Log.d(TAG, "analyzefail: ${e.cause}")
+                        }
+                        .addOnCompleteListener {
+                            imageProxy.close()
+                        }
                     scanner.process(image)
                         .addOnSuccessListener { barcodes ->
                             for (barcode in barcodes) {
@@ -302,9 +347,11 @@ lateinit var mDBHelper: DatabaseHelper;
                     it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
                 }
 
+
+
             val imageAnalyzer = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setDefaultResolution(CamcorderProfileResolutionQuirk(CameraCharacteristicsCompat.toCameraCharacteristicsCompat(Camera2CameraInfo.extractCameraCharacteristics(cameraProvider.availableCameraInfos[0]))).supportedResolutions.let {it[it.size/2]})
+               // .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                //.setDefaultResolution(CamcorderProfileResolutionQuirk(CameraCharacteristicsCompat.toCameraCharacteristicsCompat(Camera2CameraInfo.extractCameraCharacteristics(cameraProvider.availableCameraInfos[0]))).supportedResolutions.let {it[it.size/2]})
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor, YourImageAnalyzer())

@@ -7,6 +7,11 @@ android {
     namespace 'com.blindassistant.qrscannerkt'
     compileSdk 33
 
+    aaptOptions {
+        noCompress "tflite"
+        // or noCompress "lite"
+    }
+    
     defaultConfig {
         applicationId "com.blindassistant.qrscannerkt"
         minSdk 23
@@ -46,6 +51,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.8.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.preference:preference:1.1.0'
+    implementation 'com.google.mlkit:object-detection:17.0.0'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
@@ -59,4 +65,12 @@ dependencies {
     implementation "androidx.camera:camera-extensions:${camerax_version}"
 
     implementation 'com.google.mlkit:barcode-scanning:17.0.3'
+    implementation 'com.google.mlkit:object-detection-custom:17.0.0'
+
+    implementation 'org.tensorflow:tensorflow-lite-task-vision:0.4.0'
+    // Import the GPU delegate plugin Library for GPU inference
+    implementation 'org.tensorflow:tensorflow-lite-gpu-delegate-plugin:0.4.0'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.9.0'
+
+
 }
