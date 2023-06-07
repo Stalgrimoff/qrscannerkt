@@ -250,18 +250,6 @@ lateinit var mDBHelper: DatabaseHelper;
             val test = mediaImage?.let { Rect(0, 0, it.width, it.height) }
 
             println(test)
-            val localModel = LocalModel.Builder()
-                .setAssetFilePath("model.tflite")
-                .build()
-
-            val options = CustomObjectDetectorOptions.Builder(localModel)
-                .setDetectorMode(ObjectDetectorOptions.STREAM_MODE)
-                .setMaxPerObjectLabelCount(1)
-                .setClassificationConfidenceThreshold(0.05f)
-                .build()
-
-
-            val objectDetector = ObjectDetection.getClient(options)
 
             if (mediaImage != null) {
                 val image =
@@ -273,31 +261,6 @@ lateinit var mDBHelper: DatabaseHelper;
                     .build()
                 val scanner = BarcodeScanning.getClient(options)
                 if (!Stopped) {
-                    objectDetector.process(image)
-                        .addOnSuccessListener { detectedObjects ->
-                            println("rabota")
-                            for (detectedObject in detectedObjects) {
-                                if(detectedObject.labels.size > 0) {
-                                    Log.d(TAG, "analyze: ${detectedObject.labels[0].confidence}")
-                                }
-                                val boundingBox = detectedObject.boundingBox
-                                val trackingId = detectedObject.trackingId
-                                Log.d(TAG, "analyze: $boundingBox")
-                                for (label in detectedObject.labels) {
-                                    val text = label.text
-                                    val index = label.index
-                                    val confidence = label.confidence
-                                    Log.d(TAG, "analyzeSU: ${text}")
-                                }
-                            }// Task completed successfully
-                            // ...
-                        }
-                        .addOnFailureListener { e ->
-                           // Log.d(TAG, "analyzefail: ${e.cause}")
-                        }
-                        .addOnCompleteListener {
-                            imageProxy.close()
-                        }
                     scanner.process(image)
                         .addOnSuccessListener { barcodes ->
                             for (barcode in barcodes) {
@@ -370,7 +333,7 @@ lateinit var mDBHelper: DatabaseHelper;
             when (AFPref) {
                 0 -> configBuilder.setCaptureRequestOption(
                     CaptureRequest.CONTROL_AF_MODE,
-                    CaptureRequest.CONTROL_AF_MODE_AUTO)
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
                 1 -> configBuilder.setCaptureRequestOption(
                     CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_MACRO)
