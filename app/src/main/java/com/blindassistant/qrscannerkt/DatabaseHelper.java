@@ -26,9 +26,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         super(context, DB_NAME, null, DB_VERSION);
         DB_PATH = context.getApplicationInfo().dataDir + "/databases/";
         this.mContext = context;
-
         copyDataBase();
-
         this.getWritableDatabase();
     }
     public void updateDataBase() throws IOException {
@@ -36,29 +34,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             File dbFile = new File(DB_PATH + DB_NAME);
             if (dbFile.exists())
                 dbFile.delete();
-
             copyDataBase();
-
             mNeedUpdate = false;
         }
     }
 
     public void mergeDataBase(String newDB, String dbPath, String hash) throws IOException, NoSuchAlgorithmException {
-//        InputStream mInput = mContext.getAssets().open(newDB + ".db");
-//        OutputStream mOutput = new FileOutputStream(DB_PATH + newDB + ".db");
-//        byte[] mBuffer = new byte[1024];
-//        int mLength;
-//        while ((mLength = mInput.read(mBuffer)) > 0)
-//            mOutput.write(mBuffer, 0, mLength);
-//        mOutput.flush();
-//        mOutput.close();
-//        mInput.close();
-
         this.getWritableDatabase().execSQL("attach '" + dbPath + "' as toMerge;");
         this.getWritableDatabase().execSQL("CREATE TABLE " + newDB + "(qr TEXT(32) NOT NULL, name TEXT(50) NOT NULL, nameRU TEXT(50) NOT NULL);");
         this.getWritableDatabase().execSQL("insert into " + newDB + " select * from toMerge." + newDB + "; ");
         this.getWritableDatabase().execSQL("detach toMerge;");
-
         String infosql = "INSERT INTO info (name,qr) VALUES (\"" + newDB +  "\", \"" + hash + "\")";
         this.getWritableDatabase().execSQL(infosql);
     }
@@ -103,7 +88,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-
     }
 
     @Override

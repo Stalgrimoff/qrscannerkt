@@ -143,8 +143,5 @@ class APIManager {
                 false
             }
         }
-
-
     }
-
 }

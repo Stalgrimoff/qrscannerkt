@@ -79,9 +79,6 @@ class CustomRecyclerAdapter(private val names: List<String>) : RecyclerView.Adap
                     )
                 }
             }
-
-
     }
-
     override fun getItemCount() = names.size
 }

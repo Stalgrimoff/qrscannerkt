@@ -310,11 +310,10 @@ lateinit var mDBHelper: DatabaseHelper;
                     it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
                 }
 
-
-
             val imageAnalyzer = ImageAnalysis.Builder()
-               // .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                //.setDefaultResolution(CamcorderProfileResolutionQuirk(CameraCharacteristicsCompat.toCameraCharacteristicsCompat(Camera2CameraInfo.extractCameraCharacteristics(cameraProvider.availableCameraInfos[0]))).supportedResolutions.let {it[it.size/2]})
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setDefaultResolution(CamcorderProfileResolutionQuirk(CameraCharacteristicsCompat.toCameraCharacteristicsCompat(Camera2CameraInfo.extractCameraCharacteristics(cameraProvider.availableCameraInfos[0]))).supportedResolutions
+                    .let {it[it.size/2]})
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor, YourImageAnalyzer())
@@ -420,7 +419,6 @@ lateinit var mDBHelper: DatabaseHelper;
         private val REQUIRED_PERMISSIONS =
             mutableListOf (
                 Manifest.permission.CAMERA,
-                Manifest.permission.RECORD_AUDIO, //нужно убрать
             ).apply {
                 if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                     add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
