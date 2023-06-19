@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Bitmap
 import android.graphics.Rect
 import android.hardware.camera2.CaptureRequest
 import android.media.MediaPlayer
@@ -29,6 +30,7 @@ import androidx.camera.camera2.internal.compat.quirk.CamcorderProfileResolutionQ
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.*
+import androidx.camera.core.ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -44,6 +46,10 @@ import com.google.mlkit.vision.objects.ObjectDetection
 import com.google.mlkit.vision.objects.custom.CustomObjectDetectorOptions
 import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
 import kotlinx.coroutines.*
+import org.tensorflow.lite.Tensor
+import org.tensorflow.lite.support.image.ops.Rot90Op
+import org.tensorflow.lite.task.vision.detector.Detection
+import org.tensorflow.lite.task.vision.detector.ObjectDetector
 import java.io.File
 import java.io.IOException
 import java.sql.SQLException
@@ -58,7 +64,6 @@ private var AppId: String = "3257b0ae1f8d05fed50a757017a93688"
 lateinit var mDB: SQLiteDatabase
 private var mediaPlayer: MediaPlayer? = null
 var preInstalled = arrayOf("school10","bgitu")
-
 val blockedArray = ArrayList<String>()
 lateinit var mDBHelper: DatabaseHelper;
 @ExperimentalCamera2Interop @Suppress("NAME_SHADOWING")
@@ -158,6 +163,17 @@ lateinit var mDBHelper: DatabaseHelper;
         }
     }
     class YourImageAnalyzer : ImageAnalysis.Analyzer {
+
+        interface DetectorListener {
+            fun onError(error: String)
+            fun onResults(
+                results: MutableList<Detection>?,
+                inferenceTime: Long,
+                imageHeight: Int,
+                imageWidth: Int
+            )
+        }
+
         fun requestDB(DB: String) {
             val apiService = APIManager.RestApiService()
             val userInfo = APIManager.UserInfo(name = DB)
@@ -244,12 +260,14 @@ lateinit var mDBHelper: DatabaseHelper;
                 requestDB(value.split(" ")[1])
             }
         }
+
+
         override fun analyze(imageProxy: ImageProxy) {
             val mediaImage = imageProxy.image
 
-            val test = mediaImage?.let { Rect(0, 0, it.width, it.height) }
-
-            println(test)
+//            val test = mediaImage?.let { Rect(0, 0, it.width, it.height) }
+//
+//            println(test)
 
             if (mediaImage != null) {
                 val image =

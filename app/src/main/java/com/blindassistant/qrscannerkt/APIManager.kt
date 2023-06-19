@@ -32,17 +32,17 @@ class APIManager {
     interface RestApi {
 
         @Headers("Content-Type: application/json")
-        @POST("api")
+        @POST("api/app/occurencejson")
         fun requestInfo(@Body userData: UserInfo): Call<UserInfo>
 
-        @GET("api/sendfile")
+        @GET("api/app/sendfile")
         fun downloadFileWithFixedUrl(@Header("info") name:String): Call<ResponseBody?>?
     }
     object ServiceBuilder {
         private val client = OkHttpClient.Builder().build()
 
         private val retrofit = Retrofit.Builder()
-            .baseUrl("http://192.168.17.122:8081")
+            .baseUrl("http://192.168.1.123:8081")
             .addConverterFactory(GsonConverterFactory.create())
             .client(client)
             .build()
